@@ -49,11 +49,14 @@ namespace BookStoreApp.API.Controllers
 
         // GET: api/Books/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<BookReadOnlyDto>> GetBook(int id)
+        public async Task<ActionResult<BookDetailDto>> GetBook(int id)
         {
             try
             {
-                var book = mapper.Map<BookReadOnlyDto>(await _context.Books.FindAsync(id));
+                var book = await _context.Books
+                    .Include(a => a.Author)
+                    .ProjectTo<BookDetailDto>(mapper.ConfigurationProvider)
+                    .FirstOrDefaultAsync();
 
                 if (book == null)
                 {
