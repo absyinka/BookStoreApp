@@ -1,6 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BookStoreApp.API.Data;
+using BookStoreApp.API.DTOs.Book;
+using AutoMapper;
+using BookStoreApp.API.Static;
+using BookStoreApp.API.DTOs.Author;
 
 namespace BookStoreApp.API.Controllers
 {
@@ -9,51 +13,78 @@ namespace BookStoreApp.API.Controllers
     public class BooksController : ControllerBase
     {
         private readonly BookStoreDbContext _context;
+        private readonly IMapper mapper;
+        private readonly ILogger<BooksController> logger;
 
-        public BooksController(BookStoreDbContext context)
+        public BooksController(
+            BookStoreDbContext context,
+            IMapper mapper,
+            ILogger<BooksController> logger)
         {
             _context = context;
+            this.mapper = mapper;
+            this.logger = logger;
         }
 
         // GET: api/Books
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Book>>> GetBooks()
+        public async Task<ActionResult<IEnumerable<BookReadOnlyDto>>> GetBooks()
         {
-            if (_context.Books == null)
+            try
             {
-                return NotFound();
+                var books = mapper.Map<IEnumerable<BookReadOnlyDto>>(await _context.Books.ToListAsync());
+                return Ok(books);
             }
-            return Ok(await _context.Books.ToListAsync());
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"{Messages.GeneralErrorMessage} {nameof(GetBooks)}");
+                return StatusCode(500, Messages.Error500Message);
+            }
         }
 
         // GET: api/Books/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Book>> GetBook(int id)
+        public async Task<ActionResult<BookReadOnlyDto>> GetBook(int id)
         {
-            if (_context.Books == null)
+            try
             {
-                return NotFound();
+                var book = mapper.Map<BookReadOnlyDto>(await _context.Books.FindAsync(id));
+
+                if (book == null)
+                {
+                    logger.LogWarning($"{Messages.NotFoundMessage}: {nameof(GetBook)} - ID: {id}");
+                    return NotFound();
+                }
+
+                return Ok(book);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"{Messages.GeneralErrorMessage} {nameof(GetBook)}");
+                return StatusCode(500, Messages.Error500Message);
+            }
+        }
+
+        // PUT: api/Books/5
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutBook(int id, BookUpdateDto request)
+        {
+            if (id != request.Id)
+            {
+                logger.LogWarning($"{Messages.InvalidIdMessage}: {nameof(PutBook)} - ID: {id}");
+                return BadRequest();
             }
 
             var book = await _context.Books.FindAsync(id);
 
             if (book == null)
             {
-                return NotFound();   
+                logger.LogWarning($"{Messages.NotFoundMessage}: {nameof(PutBook)} - ID: {id}");
+                return NotFound();
             }
 
-            return Ok(book);
-        }
-
-        // PUT: api/Books/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutBook(int id, Book book)
-        {
-            if (id != book.Id)
-            {
-                return BadRequest();
-            }
+            mapper.Map(request, book);
 
             _context.Entry(book).State = EntityState.Modified;
 
@@ -61,15 +92,17 @@ namespace BookStoreApp.API.Controllers
             {
                 await _context.SaveChangesAsync();
             }
-            catch (DbUpdateConcurrencyException)
+            catch (DbUpdateConcurrencyException dbce)
             {
-                if (! await BookExists(id))
+                if (!await BookExists(id))
                 {
+                    logger.LogWarning($"{Messages.NotFoundMessage}: {nameof(PutBook)} - ID: {id}");
                     return NotFound();
                 }
                 else
                 {
-                    throw;
+                    logger.LogError(dbce, $"{Messages.GeneralErrorMessage}: {nameof(PutBook)} - ID: {id}");
+                    return StatusCode(500, Messages.Error500Message);
                 }
             }
 
@@ -79,36 +112,54 @@ namespace BookStoreApp.API.Controllers
         // POST: api/Books
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<Book>> PostBook(Book book)
+        public async Task<ActionResult<BookCreateDto>> PostBook(BookCreateDto request)
         {
-            if (_context.Books == null)
+            try
             {
-                return Problem("Entity set 'BookStoreDbContext.Books'  is null.");
-            }
-            _context.Books.Add(book);
-            await _context.SaveChangesAsync();
+                var book = mapper.Map<Book>(request);
 
-            return CreatedAtAction(nameof(GetBook), new { id = book.Id }, book);
+                await _context.Books.AddAsync(book);
+                await _context.SaveChangesAsync();
+
+                return CreatedAtAction(nameof(GetBook), new { id = book.Id }, book);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, $"{Messages.GeneralErrorMessage}: {nameof(PostBook)}");
+                return StatusCode(500, Messages.Error500Message);
+            }
         }
 
         // DELETE: api/Books/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteBook(int id)
         {
-            if (_context.Books == null)
+            try
             {
-                return NotFound();
+                if (_context.Books == null)
+                {
+                    logger.LogWarning($"{Messages.NotFoundMessage}: {nameof(DeleteBook)} - ID: {id}");
+                    return NotFound();
+                }
+
+                var book = await _context.Books.FindAsync(id);
+
+                if (book == null)
+                {
+                    logger.LogWarning($"{Messages.NotFoundMessage}: {nameof(DeleteBook)} - ID: {id}");
+                    return NotFound();
+                }
+
+                _context.Books.Remove(book);
+                await _context.SaveChangesAsync();
+
+                return NoContent();
             }
-            var book = await _context.Books.FindAsync(id);
-            if (book == null)
+            catch(Exception ex)
             {
-                return NotFound();
+                logger.LogError(ex, $"{Messages.GeneralErrorMessage}: {nameof(DeleteBook)}");
+                return StatusCode(500, Messages.Error500Message);
             }
-
-            _context.Books.Remove(book);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
         }
 
         private async Task<bool> BookExists(int id)
