@@ -5,6 +5,7 @@ using BookStoreApp.API.DTOs.Book;
 using AutoMapper;
 using BookStoreApp.API.Static;
 using BookStoreApp.API.DTOs.Author;
+using AutoMapper.QueryableExtensions;
 
 namespace BookStoreApp.API.Controllers
 {
@@ -32,7 +33,11 @@ namespace BookStoreApp.API.Controllers
         {
             try
             {
-                var books = mapper.Map<IEnumerable<BookReadOnlyDto>>(await _context.Books.ToListAsync());
+                var books = await _context.Books
+                    .Include(a => a.Author)
+                    .ProjectTo<BookReadOnlyDto>(mapper.ConfigurationProvider)
+                    .ToListAsync();
+
                 return Ok(books);
             }
             catch (Exception ex)

@@ -1,10 +1,14 @@
-﻿using System.ComponentModel.DataAnnotations;
-
-namespace BookStoreApp.API.DTOs.Book
+﻿namespace BookStoreApp.API.DTOs.Book
 {
-    public class BookReadOnlyDto : BaseDto
+    public class BookDetailDto : BaseDto
     {
         public string Title { get; set; } = null!;
+
+        public int Year { get; set; }
+
+        public string Isbn { get; set; } = null!;
+
+        public string? Summary { get; set; }
 
         public string? Image { get; set; }
 
