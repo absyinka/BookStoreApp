@@ -53,7 +53,8 @@ public class AuthorsController : ControllerBase
 
             if (author == null)
             {
-                logger.LogWarning($"{Messages.NotFoundMessage}: {nameof(GetAuthor)} - ID: {id}");
+                string message = $"{Messages.NotFoundMessage}: {nameof(GetAuthor)} - ID: {id}";
+                logger.LogWarning(message);
                 return NotFound();
             }
 

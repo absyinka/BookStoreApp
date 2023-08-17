@@ -35,6 +35,13 @@ public class AuthController : ControllerBase
 
     [HttpPost]
     [Route("register")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(201)]
+    [ProducesResponseType(202)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    [ProducesResponseType(500)]
     public async Task<IActionResult> Register(UserDto request)
     {
         try
@@ -62,12 +69,20 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             logger.LogError(ex, $"{Messages.GeneralErrorMessage} {nameof(Register)}");
-            return StatusCode(500, Messages.Error500Message);
+            return Problem($"{Messages.Error500Message} {nameof(Register)}", statusCode: 500);
+
         }
     }
 
     [HttpPost]
     [Route("login")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(201)]
+    [ProducesResponseType(202)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    [ProducesResponseType(500)]
     public async Task<ActionResult<AuthResponse>> Login(LoginUserDto request)
     {
         try
@@ -90,12 +105,12 @@ public class AuthController : ControllerBase
                 Token = tokenString,
             };
 
-            return Accepted(response);
+            return Ok(response);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, $"{Messages.GeneralErrorMessage} {nameof(Login)}");
-            return StatusCode(500, Messages.Error500Message);
+            return Problem($"{Messages.Error500Message} {nameof(Login)}", statusCode: 500);
         }
     }
 
